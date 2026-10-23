@@ -1,0 +1,393 @@
+
+---
+title: "PSY221A: Final Data Validation and Wrangling"
+author: "Rachel Fruchtmann"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+---
+
+
+---
+
+# Hypotheses
+
+**H1:** Individualistic attitudes (DV) will be stronger among full-time employed individuals than among unemployed individuals (IV).
+
+**H2:** Gender-equality attitudes (DV) will be associated with daily time spent enhancing appearance (IV).
+
+## 1. Load the package and data
+
+```{r load, message=FALSE}
+library(codebook)
+
+# Load the raw dataset
+raw <- read.csv("data/raw/data_doctored.csv")
+
+# Check the dimensions, participant IDs, and variable structure
+dim(raw)
+head(raw$ResponseId)
+str(raw)
+
+# Keep only variables needed for H1 and H2
+data <- raw[, c(
+  "ResponseId",
+  "Gender_Equality_1", "Gender_Equality_2", "Gender_Equality_3",
+  "Time_A_makeup_1", "Time_A_hyg_1", "Time_A_cosm_1",
+  "Time_A_exercise_1", "Time_A_hair_1", "Time_A_dress_1",
+  "Time_A_diet_1", "Time_A_other_1",
+  "Individualism_col_1", "Individualism_col_2",
+  "Individualism_col_4", "Employment"
+)]
+```
+
+## 2. Validate participant IDs
+
+Check for missing, blank, and duplicated participant IDs. Remove rows without a usable participant ID.
+
+```{r participant_ids}
+# Count missing IDs
+sum(is.na(data$ResponseId))
+
+# Count blank IDs
+sum(trimws(data$ResponseId) == "", na.rm = TRUE)
+
+# Count duplicated IDs
+sum(duplicated(data$ResponseId))
+
+# Remove rows with missing or blank IDs
+data <- data[
+  !is.na(data$ResponseId) & trimws(data$ResponseId) != "",
+]
+
+# Check the dimensions after cleaning
+dim(data)
+```
+
+# Hypothesis 1: Individualism and employment
+
+## 3. Validate and recode employment
+
+The Employment variable allows multiple selections. Create separate indicators for full-time employment and unemployment. Participants who selected both categories are treated as having conflicting responses and excluded from the comparison.
+
+```{r employment}
+# Identify missing or blank responses
+missing_employment <- is.na(data$Employment) |
+  trimws(data$Employment) == ""
+
+# Identify participants who selected both categories
+both_selected <- grepl("(^|,)1(,|$)", data$Employment) &
+  grepl("(^|,)4(,|$)", data$Employment)
+
+# Create the full-time employment indicator
+data$Full_time <- ifelse(
+  missing_employment | both_selected,
+  NA,
+  as.integer(grepl("(^|,)1(,|$)", data$Employment))
+)
+
+# Create the unemployment indicator
+data$Unemployed <- ifelse(
+  missing_employment | both_selected,
+  NA,
+  as.integer(grepl("(^|,)4(,|$)", data$Employment))
+)
+
+# Check how many participants selected both categories
+sum(both_selected, na.rm = TRUE)
+
+# Check the two indicators
+table(data$Full_time, useNA = "ifany")
+table(data$Unemployed, useNA = "ifany")
+
+# Check whether anyone is coded as both
+table(data$Full_time, data$Unemployed, useNA = "ifany")
+```
+
+## 4. Validate and score individualistic attitudes
+
+Use Individualism items 1, 2, and 4. Convert responses to numeric values, treat special missing codes as missing, check the valid response range, and reverse-code the items. Higher composite scores represent greater individualism.
+
+```{r individualism}
+# Select the three individualism items
+ind_var <- c(
+  "Individualism_col_1",
+  "Individualism_col_2",
+  "Individualism_col_4"
+)
+
+# Inspect example responses and original variable types
+lapply(data[ind_var], head)
+sapply(data[ind_var], class)
+
+# Convert responses to numeric and handle missing codes
+data[ind_var] <- lapply(data[ind_var], function(x) {
+  x <- trimws(x)
+  x[x %in% c("", "-99", "N/A")] <- NA
+  as.numeric(x)
+})
+
+# Check for invalid responses outside 1-7 or not whole numbers
+sapply(data[ind_var], function(x) {
+  sum(!is.na(x) & (x < 1 | x > 7 | x != floor(x)))
+})
+
+# Set invalid responses to missing
+data[ind_var] <- lapply(data[ind_var], function(x) {
+  invalid <- !is.na(x) &
+    (x < 1 | x > 7 | x != floor(x))
+  x[invalid] <- NA
+  x
+})
+
+# Reverse-code the items: 1 becomes 7, 2 becomes 6, etc.
+data[paste0(ind_var, "_R")] <- 8 - data[ind_var]
+
+# Calculate the mean; missing items result in a missing composite
+data$ind_rev_mean <- rowMeans(
+  data[paste0(ind_var, "_R")],
+  na.rm = FALSE
+)
+
+# Inspect the composite scores
+summary(data$ind_rev_mean)
+```
+
+## 5. Create the H1 analysis dataset
+
+Create one employment-group variable so that only full-time employed and unemployed participants are included. Participants in other employment categories, with missing employment information, or with conflicting responses are excluded.
+
+```{r h1_data}
+# Create the two-group employment variable
+data$Employment_group <- ifelse(
+  data$Full_time == 1,
+  "Full-time",
+  ifelse(data$Unemployed == 1, "Unemployed", NA)
+)
+
+# Keep participants with valid scores in the two comparison groups
+h1_data <- data[
+  !is.na(data$ind_rev_mean) &
+    !is.na(data$Employment_group),
+  c("ResponseId", "Employment_group", "ind_rev_mean")
+]
+
+# Set the order of the employment groups
+h1_data$Employment_group <- factor(
+  h1_data$Employment_group,
+  levels = c("Unemployed", "Full-time")
+)
+
+# Check the final H1 dataset
+dim(h1_data)
+head(h1_data)
+table(h1_data$Employment_group, useNA = "ifany")
+colSums(is.na(h1_data))
+```
+
+# Hypothesis 2: Gender equality and appearance time
+
+## 6. Validate and score gender-equality attitudes
+
+Convert the three gender-equality items to numeric values, handle missing codes, and check the valid response range. The items are reverse-coded so higher scores indicate stronger gender-equality endorsement, as confirmed against the codebook.
+
+```{r gender_equality}
+# Select the three gender-equality items
+ge_var <- c(
+  "Gender_Equality_1",
+  "Gender_Equality_2",
+  "Gender_Equality_3"
+)
+
+# Inspect the original response values
+lapply(raw[ge_var], function(x) sort(unique(x)))
+
+# Convert responses to numeric and handle missing codes
+data[ge_var] <- lapply(data[ge_var], function(x) {
+  x <- trimws(x)
+  x[x %in% c("", "-99", "N/A")] <- NA
+  as.numeric(x)
+})
+
+# Check for invalid responses outside 1-7 or not whole numbers
+sapply(data[ge_var], function(x) {
+  sum(!is.na(x) & (x < 1 | x > 7 | x != floor(x)))
+})
+
+# Set invalid responses to missing
+data[ge_var] <- lapply(data[ge_var], function(x) {
+  invalid <- !is.na(x) &
+    (x < 1 | x > 7 | x != floor(x))
+  x[invalid] <- NA
+  x
+})
+
+# Reverse-code the items
+data[paste0(ge_var, "_R")] <- 8 - data[ge_var]
+
+# Calculate the mean; missing items result in a missing composite
+data$Gender_Equality_mean <- rowMeans(
+  data[paste0(ge_var, "_R")],
+  na.rm = FALSE
+)
+
+# Inspect the composite scores
+summary(data$Gender_Equality_mean)
+```
+
+## 7. Validate and score appearance-enhancement time
+
+The eight variables measure minutes per day spent on appearance-related activities. A value of 360 represents six hours or more for an individual activity and is retained as valid. The total is calculated only when all eight activity responses are available.
+
+```{r appearance_time}
+# Select the eight appearance-time items
+time_var <- c(
+  "Time_A_makeup_1",
+  "Time_A_hyg_1",
+  "Time_A_cosm_1",
+  "Time_A_exercise_1",
+  "Time_A_hair_1",
+  "Time_A_dress_1",
+  "Time_A_diet_1",
+  "Time_A_other_1"
+)
+
+# Check variable types
+sapply(data[time_var], class)
+
+# Count invalid values below 0 or above 360
+sapply(data[time_var], function(x) {
+  sum(!is.na(x) & (x < 0 | x > 360))
+})
+
+# Set invalid values to missing
+data[time_var] <- lapply(data[time_var], function(x) {
+  invalid <- !is.na(x) & (x < 0 | x > 360)
+  x[invalid] <- NA
+  x
+})
+
+# Calculate total daily appearance-enhancement time
+data$Appearance_time_total <- rowSums(
+  data[time_var],
+  na.rm = FALSE
+)
+
+# Inspect the total scores
+summary(data$Appearance_time_total)
+```
+
+## 8. Create the H2 analysis dataset
+
+Keep participants who have complete scores for both gender-equality attitudes and total appearance-enhancement time.
+
+```{r h2_data}
+h2_data <- data[
+  !is.na(data$Gender_Equality_mean) &
+    !is.na(data$Appearance_time_total),
+  c(
+    "ResponseId",
+    "Gender_Equality_mean",
+    "Appearance_time_total"
+  )
+]
+
+# Check the final H2 dataset
+dim(h2_data)
+head(h2_data)
+colSums(is.na(h2_data))
+```
+
+# 9. Add variable labels
+
+The labels describe what each variable measures, how composite scores are calculated, and the relevant units. Keep the labels in the same order as the columns.
+
+```{r variable_labels}
+# Labels for H1
+var_label(h1_data) <- c(
+  "Unique participant ID (ResponseId)",
+  "Employment comparison group: Full-time or Unemployed; other employment categories and missing or conflicting responses are excluded",
+  "Individualistic attitudes: mean of Individualism_col_1, Individualism_col_2, and Individualism_col_4 after reverse-coding each item as 8-x; higher scores indicate greater individualism"
+)
+
+# Labels for H2
+var_label(h2_data) <- c(
+  "Unique participant ID (ResponseId)",
+  "Gender-equality attitudes: mean of Gender_Equality_1, Gender_Equality_2, and Gender_Equality_3 after reverse-coding each item as 8-x; higher scores indicate stronger gender-equality endorsement",
+  "Daily time spent enhancing appearance: sum of eight Time_A variables covering makeup, hygiene, cosmetics, exercise, hair, dress, diet, and other activities; minutes per day; 360 represents six hours or more for an individual activity"
+)
+```
+
+
+```{r}
+
+# H1: Summary of the cleaned dataset
+
+cat("H1: Employment group and individualism\n")
+
+# Show the structure of the dataset
+str(h1_data)
+
+# Summarize the individualism scores
+summary(h1_data$ind_rev_mean)
+
+# Count participants in each employment group
+table(h1_data$Employment_group)
+
+# Count missing values in each column
+colSums(is.na(h1_data))
+
+
+# H2: Summary of the cleaned dataset
+
+cat("\nH2: Gender equality and appearance-related time\n")
+
+# Show the structure of the dataset
+str(h2_data)
+
+# Summarize gender-equality scores
+summary(h2_data$Gender_Equality_mean)
+
+# Summarize total appearance-related time
+summary(h2_data$Appearance_time_total)
+
+# Count missing values in each column
+colSums(is.na(h2_data))
+
+```
+
+```{r}
+
+# Create the output folder if it does not already exist
+if (!dir.exists("data/processed_data")) {
+  dir.create("data/processed_data", recursive = TRUE)
+}
+
+# Save the cleaned H1 and H2 datasets
+write.csv(
+  h1_data,
+  "data/processed_data/practice_h1.csv",
+  row.names = FALSE
+)
+
+write.csv(
+  h2_data,
+  "data/processed_data/practice_h2.csv",
+  row.names = FALSE
+)
+
+# Read the files back in to verify they were saved
+h1Saved <- read.csv("data/processed_data/practice_h1.csv")
+h2Saved <- read.csv("data/processed_data/practice_h2.csv")
+
+# Check dimensions and missing values
+dim(h1Saved)
+dim(h2Saved)
+
+colSums(is.na(h1Saved))
+colSums(is.na(h2Saved))
+
+```
+
