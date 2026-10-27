@@ -23,7 +23,6 @@ output:
 ```{r load, message=FALSE}
 library(codebook)
 
-# Load the raw dataset
 raw <- read.csv("data/raw/data_doctored.csv")
 
 # Check the dimensions, participant IDs, and variable structure
@@ -160,6 +159,12 @@ summary(data$ind_rev_mean)
 Create one employment-group variable so that only full-time employed and unemployed participants are included. Participants in other employment categories, with missing employment information, or with conflicting responses are excluded.
 
 ```{r h1_data}
+###JK: Great work with this code! Just clarify the group descriptions. ###
+# Your code includes people who selected Full-time plus another option, such as Student.
+# Please say that additional selections are allowed, but selecting both Full-time and Unemployed leads to exclusion.
+# No code change is needed.
+###  End of comment ###
+
 # Create the two-group employment variable
 data$Employment_group <- ifelse(
   data$Full_time == 1,
@@ -294,6 +299,15 @@ h2_data <- data[
   )
 ]
 
+###JK: Please inspect the appearance-time totals that exceed 24 hours. ###
+# In your final H2 dataset, 545 participants have totals above 1,440 minutes, and the maximum is 2,880 minutes.
+# Inspect them and explain how you will interpret or handle these totals before analyzing H2.
+# You can check them with:
+# sum(h2_data$Appearance_time_total > 1440)
+# range(h2_data$Appearance_time_total)
+# head(h2_data[h2_data$Appearance_time_total > 1440, ])
+###  End of comment ###
+
 # Check the final H2 dataset
 dim(h2_data)
 head(h2_data)
@@ -322,6 +336,15 @@ var_label(h2_data) <- c(
 
 
 ```{r}
+
+###JK: Add compact_codebook() to generate the codebooks as in the Lab03 example. ###
+# var_label() stores descriptions, while str() and summary() provide separate checks of the data.
+# Add these calls after assigning the labels, and knit the document to display the formatted codebooks:
+# compact_codebook(h1_data)
+# compact_codebook(h2_data)
+# Please also include the 1-7 response ranges and the requirement for all three responses in the two attitude-score labels.
+# For Appearance_time_total, include the requirement for all eight responses in its label as well, so the generated codebook contains the scoring rules already described in your script.
+###  End of comment ###
 
 # H1: Summary of the cleaned dataset
 
