@@ -1,0 +1,186 @@
+---
+title: "Descriptive Stats"
+output: html_document
+date: "2026-11-09"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. Load the processed data
+
+```{r load}
+# Load psych package
+library(psych)
+
+h1Data <- read.csv("data/processed_data/h1_revised.csv")
+h2Data <- read.csv("data/processed_data/h2_revised.csv")
+
+```
+
+## 2. Look at "distribution" of the count variable (Employment Status) 
+```{r histogram}
+#H1
+## Count Bargraph for Employment (categorical variable)
+
+library(ggplot2)
+
+Employ_bar <- ggplot(data = h1Data,
+                     aes(x = Employment_group,
+                     fill = Employment_group)) +
+  geom_bar() +
+  labs(x="Employment Status",
+       y="Amount of People",
+       fill="Employment_group")
+Employ_bar
+```
+
+## 3 Look at distributions (using Histogram)
+
+```{r histogram}
+
+# histogram groups num. values into intervals (bins).
+# Bar height shows how many observations fall in each interval.
+# Start by looking at the distribution before calculating summary statistics.
+
+#H1 variable
+hist(h1Data$ind_rev_mean)
+## Add readable labels to the same histogram.
+hist(h1Data$ind_rev_mean,
+     main = "Distribution of Individualistic Attitudes",
+     xlab = "Individualistic Attitudes (1-7)")
+
+## Change bin width (because scores have been averaged and this portrays it on the scale of the original measurement)
+hist(h1Data$ind_rev_mean,
+     breaks = seq(from = 0, to = 7, by=1),
+     main = "Distribution of Individualistic Attitudes",
+     xlab = "Individualistic Attitudes (1-7)")
+#Output:normally distributed
+
+#H2 variables
+hist(h2Data$Gender_Equality_mean)
+#output:left skewed
+
+hist(h2Data$appearance_time_sum)
+#output:right skewed
+```
+
+## One statistic at a time for ind_rev_mean variable 
+```{r individual stats}
+
+#H1: Employment Status 
+# Table: count how many people are in each category.
+table(h1Data$Employment_group, useNA = "ifany")
+
+#H1: Individualistic attitudes
+
+## measures of central tendency
+mean(h1Data$ind_rev_mean, na.rm = TRUE)
+median(h1Data$ind_rev_mean, na.rm = TRUE)
+
+##measures of variability
+# Range: return the minimum and maximum.
+range(h1Data$ind_rev_mean, na.rm = TRUE)
+# IQR: the 75th percentile minus the 25th percentile.
+IQR(h1Data$ind_rev_mean, na.rm = TRUE)
+
+```
+
+## Several statistics at once for all variables
+```{r descriptive stats}
+summary(h1Data$ind_rev_mean)
+psych::describe(h1Data$ind_rev_mean)
+
+summary(h2Data$Gender_Equality_mean)
+psych::describe(h2Data$Gender_Equality_mean)
+
+summary(h2Data$appearance_time_sum)
+psych::describe(h2Data$appearance_time_sum)
+```
+
+##Standardizing variables
+```{r standardizing variables}
+# scale() uses z = ((original score - mean) / (standard deviation)) by default.
+# Keep the original commitment scores and store the standardized values separately.
+# scale() returns a matrix; as.numeric() makes a simple numeric column (this way its easily added to the dataframe).
+
+#Standardize H1:Individualistic Attitudes
+h1Data$ind_att_z <- as.numeric(scale(h1Data$ind_rev_mean))
+head(h1Data[, c("ind_rev_mean", "ind_att_z")])
+
+#Standardize H2: Gender Equality Attitudes
+h2Data$gender_equality_z <- as.numeric(scale(h2Data$Gender_Equality_mean))
+
+#Standardize H2: Time Spent on Appearance
+h2Data$appearance_time_z <- as.numeric(scale(h2Data$appearance_time_sum))
+```
+
+##Covariance and Correlation for H2
+```{r}
+# Covariance describes whether two variables tend to move together.
+## Positive: higher values tend to occur together. Negative: higher values tend to accompany lower values.
+## Its size depends on the units and is not restricted to -1 through 1.
+
+# Pearson correlation expresses a linear association on a -1 to 1 scale.
+
+#Covariance for H2 
+cov(h2Data$Gender_Equality_mean, h2Data$appearance_time_sum, use = "complete.obs")
+
+# Correlation for H2
+cor(h2Data$Gender_Equality_mean, h2Data$appearance_time_sum, use = "complete.obs")
+## output: small negative correlation coefficient 
+
+#Correlation Matrix for H2
+## Select numerical variables only; do not include participant IDs or category codes.
+corData <- h2Data[, c("Gender_Equality_mean", "appearance_time_sum")]
+## A correlation matrix gives the correlation for each pair of columns.
+### The diagonal is 1 because each variable is correlated with itself.
+cor(corData, use = "complete.obs")
+```
+
+
+### H1: Descriptive stats for Individualistic Attitudes by Employment Group
+
+```{Descriptive stats for individualistic Attitudes by  Employment Variable Category H1}
+# aggregate() allows to calculate statistics seperately for different groups in the dataset
+## ind_rev_mean ~ Employment_group tells R to calculate the statistic seperately for each Employment_group
+
+#mean
+aggregate(ind_rev_mean ~ Employment_group,
+          data = h1Data,
+          FUN = mean,
+          na.rm = TRUE)
+#median
+aggregate(ind_rev_mean ~ Employment_group,
+          data = h1Data,
+          FUN = median,
+          na.rm = TRUE)
+#standard deviation
+aggregate(ind_rev_mean ~ Employment_group,
+          data = h1Data,
+          FUN = sd,
+          na.rm = TRUE)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
