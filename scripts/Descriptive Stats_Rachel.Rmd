@@ -40,6 +40,11 @@ Employ_bar
 
 ## 3 Look at distributions (using Histogram)
 
+###JK: Give this chunk a different label so the document can knit. ###
+# The earlier bar-chart chunk is also named histogram, and duplicate R chunk labels stop Knit.
+# Rename this opening line to something like ```{r continuous_histograms}.
+###  End of comment ###
+
 ```{r histogram}
 
 # histogram groups num. values into intervals (bins).
