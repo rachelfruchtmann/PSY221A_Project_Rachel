@@ -1,0 +1,112 @@
+---
+title: "lab06_Rachel"
+author: "Rachel"
+format: html
+editor: visual
+ toc: true
+    code-fold: true
+execute:
+  echo: true
+---
+```{r}
+#| label: load data
+#| include: false
+library(ggplot2)
+library(ggrain)
+
+h1data <- read.csv("data/processed_data/h1_revised.csv")
+# Make employment a factor again
+h1data$Employment_group <- factor(h1data$Employment_group,
+                                  levels = c("Full-time","Unemployed"))
+
+h2data <- read.csv("data/processed_data/h2_revised.csv")
+```
+
+## Hypothesis 1
+Individualistic attitudes will be stronger among full-time employed individuals than unemployed individuals.
+
+### Variables and descriptive statistics
+- **Employment Status (`Employment_group`):** A categorical variable with two groups: Full Time and Unemployed.
+- **Individualistic Attitudes(`ind_rev_mean`):** How strongly someone prioritizes personal rewards and goals over group welfare. The mean of reverse coded, available responses to (`Individualism_col_1`), (`Individualism_col_2`), and (`Individualism_col_4`). Each item ranges from 1 (Definitely Disagree) to 7 (Definitely Agree); higher scores indicate stronger individualistic attitudes. 
+
+```{r}
+#| label: h1-descriptives
+# Count respondents in each group.
+table(h1data$Employment_group)
+
+# Summarize individualistic attitude scores separately for each group.
+by(h1data$ind_rev_mean,h1data$Employment_group,summary)
+```
+
+### Graphs 
+
+@fig-individualism shows the distribution of individualistic attitudes by employment status. The boxes represent the middle 50% of the data and quartiles. The whiskers represent the spread and range of the data.
+
+```{r}
+#| label: fig-individualism
+#| fig-cap: "Distribution of individualistic attitudes, by empolyment status."
+#| fig-width: 8
+#| fig-height: 5
+
+h1BoxPlot <- ggplot(data = h1data,
+                aes(x= Employment_group,
+                    y = ind_rev_mean,
+                    fill = Employment_group))+
+  labs(x = "Employment Status",
+       y = "Individualistic Attitudes",
+       title = "Individualistic Attitudes Compared by Employment Status")+
+  scale_x_discrete(labels = (c("Full Time", "Unemployed")))+
+  scale_y_continuous(
+    limits = c(1,7),
+    breaks = 1:7) +
+  theme_gray(base_size=13) +
+  geom_boxplot() 
+h1BoxPlot
+```
+## H2
+Gender-equality attitudes will be associated with daily time spent enhancing appearance.
+
+### Variables and descriptive statistics
+- **Gender Equality Attitude (`Gender_Equality_mean`):**  The mean of reverse coded, available responses to (`Gender_Equality_1`), (`Gender_Equality_2`), and (`Gender_Equality_3`). Each item ranges from 1 (Definitely Disagree) to 7 (Definitely Agree); higher scores indicate greater gender equality endorsement.
+- **Daily time spent enhancing appearance(`appearance_time_sum`):** The sum of eight activity items in minutes per days. (`Time_A_makeup_1`), (`Time_A_hyg_1`), (`Time_A_cosm_1`), (`Time_A_exercise_1`), (`Time_A_hair_1`), (`Time_A_dress_1`), (`Time_A_diet_1`), (`Time_A_other_1`); higher means more time.
+
+```{r}
+#| label: h2-descriptives
+summary(h2data[, c("Gender_Equality_mean", "appearance_time_sum")])
+```
+### Graph 
+@fig-appearance shows the relationship between time spent on enhancing appearance and gender equality attitudes. Points are jittered to make overlapping responses easier to see; the recorded scores are unchanged. The line summarizes the linear trend.
+
+```{r}
+#| label: fig-appearance
+#| fig-cap: "CTime spent enhancing appearance in relation to gender equality attitudes."
+#| fig-width: 8
+#| fig-height: 5
+
+h2JitterLinePlot <- ggplot(data = h2data,
+                    aes(x=Gender_Equality_mean,
+                        y=appearance_time_sum))+
+    geom_jitter(width = .12,height=.04,alpha=.04,size = .6)+
+    labs(x="Gender Equality Attitude Score",
+       y="Total Time Spent on Appearance",
+       title="Relationship between Gender Equality Attitudes and Time Spent on Appearance") +
+  theme_gray(base_size = 18) +
+  geom_smooth(method = "lm")
+
+h2JitterLinePlot
+```
+
+### Observed trend 
+
+```{r}
+#| label: correlation
+r <- cor(h2data$Gender_Equality_mean, h2data$appearance_time_sum, use = "complete.obs")
+round(r, 2)
+```
+
+The correlation was `{r} round(r, 2)`, indicating a weak negative association. Respondents who reported more egalitarian Gender Attitudes tended to reported less time spent on enhancing appearance.
+
+
+
+
+
