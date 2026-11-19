@@ -8,11 +8,29 @@ editor: visual
 execute:
   echo: true
 ---
+
+###JK: Correct the YAML indentation and include resources when rendering the report. ###
+# Replace format: html and the toc/code-fold lines with this structure, keeping editor: visual on its own line outside it:
+# format:
+#   html:
+#     toc: true
+#     code-fold: true
+#     embed-resources: true
+# The submitted QMD currently stops at the YAML header. The published HTML also has missing graph and stylesheet files.
+# After rendering successfully, replace docs/index.html with the newly generated HTML and push it.
+###  End of comment ###
+
 ```{r}
 #| label: load data
 #| include: false
 library(ggplot2)
 library(ggrain)
+
+###JK: Make these data paths work from the report's location. ###
+# This QMD is inside scripts, so the current data/... reads look for a data folder inside scripts when you Render.
+# A simple fix is to put this QMD in the project folder beside the .Rproj file; the existing data/... reads will then work.
+# If you keep the report in scripts, use ../data/processed_data/h1_revised.csv and ../data/processed_data/h2_revised.csv instead.
+###  End of comment ###
 
 h1data <- read.csv("data/processed_data/h1_revised.csv")
 # Make employment a factor again
